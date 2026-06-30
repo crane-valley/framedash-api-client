@@ -1,5 +1,7 @@
 import { isIPv4 } from "node:net";
 
+export * from "./queries.js";
+
 /** RFC 9457 Problem Details fields parsed from API error responses. */
 export interface ProblemDetails {
 	type?: string;
