@@ -1,6 +1,6 @@
 {
 	"name": "@framedash/api-client",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"license": "MIT",
 	"type": "module",
 	"files": [
@@ -23,7 +23,7 @@
 		"clean": "rm -rf dist"
 	},
 	"engines": {
-		"node": ">=18.0.0"
+		"node": ">=20.0.0"
 	},
 	"devDependencies": {
 		"@types/node": "^22.0.0",

@@ -42,19 +42,28 @@ export class ApiError extends Error {
 	}
 }
 
-export interface ApiClientOptions {
+/**
+ * Exactly one credential: a project-bound API key (sent as X-API-Key) or an
+ * OAuth 2.1 access token (sent as Authorization: Bearer). The `never`-typed
+ * counterpart field makes passing both a compile-time error; the constructor
+ * enforces the same invariant at runtime for plain-JS consumers.
+ */
+export type ApiClientCredential =
+	| { apiKey: string; accessToken?: never }
+	| { accessToken: string; apiKey?: never };
+
+export type ApiClientOptions = {
 	baseUrl: string;
-	apiKey: string;
 	projectId: string;
 	onError: (error: ApiError) => never;
-}
+} & ApiClientCredential;
 
 /**
- * Reject base URLs that would leak the API key. The key is attached as an
- * X-API-Key header on every request, so the transport must be https; http is
- * permitted only for explicit loopback dev endpoints. Parsing the host (instead
- * of substring matching) also rejects look-alike hosts such as
- * http://localhost.attacker.example.
+ * Reject base URLs that would leak the credential. The API key or Bearer
+ * token is attached as a header on every request, so the transport must be
+ * https; http is permitted only for explicit loopback dev endpoints. Parsing
+ * the host (instead of substring matching) also rejects look-alike hosts such
+ * as http://localhost.attacker.example.
  */
 export function assertSafeBaseUrl(baseUrl: string): void {
 	let parsed: URL;
@@ -90,14 +99,22 @@ function isLoopbackHost(hostname: string): boolean {
 /** REST API client for the Framedash Developer Platform. */
 export class ApiClient {
 	private baseUrl: string;
-	private apiKey: string;
+	private credential: ApiClientCredential;
 	private projectId: string;
 	private onError: (error: ApiError) => never;
 
 	constructor(options: ApiClientOptions) {
 		assertSafeBaseUrl(options.baseUrl);
+		const hasApiKey = typeof options.apiKey === "string" && options.apiKey.length > 0;
+		const hasAccessToken =
+			typeof options.accessToken === "string" && options.accessToken.length > 0;
+		if (hasApiKey === hasAccessToken) {
+			throw new Error("Exactly one of apiKey or accessToken is required");
+		}
+		this.credential = hasApiKey
+			? { apiKey: options.apiKey as string }
+			: { accessToken: options.accessToken as string };
 		this.baseUrl = options.baseUrl.replace(/\/+$/, "");
-		this.apiKey = options.apiKey;
 		this.projectId = options.projectId;
 		this.onError = options.onError;
 	}
@@ -131,13 +148,13 @@ export class ApiClient {
 		return `/api/v1/projects/${encodeURIComponent(this.projectId)}/${suffix}`;
 	}
 
-	/** Create a new client with a different project ID. */
+	/** Create a new client with a different project ID (same credential). */
 	withProject(projectId: string): ApiClient {
 		return new ApiClient({
 			baseUrl: this.baseUrl,
-			apiKey: this.apiKey,
 			projectId,
 			onError: this.onError,
+			...this.credential,
 		});
 	}
 
@@ -151,9 +168,13 @@ export class ApiClient {
 	private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
 		const url = `${this.baseUrl}${path}`;
 		const headers: Record<string, string> = {
-			"X-API-Key": this.apiKey,
 			Accept: "application/problem+json, application/json;q=0.9",
 		};
+		if (this.credential.apiKey !== undefined) {
+			headers["X-API-Key"] = this.credential.apiKey;
+		} else {
+			headers.Authorization = `Bearer ${this.credential.accessToken}`;
+		}
 
 		if (!path.includes("/projects/") && this.projectId) {
 			headers["X-Project-Id"] = this.projectId;
@@ -173,7 +194,8 @@ export class ApiClient {
 
 		// Never follow a redirect: fetch would re-send the X-API-Key header to the
 		// redirect target (undici strips only Authorization/Cookie/Proxy-Authorization
-		// across a cross-origin redirect, not custom headers). The API never 3xx's a
+		// across a CROSS-origin redirect, not custom headers -- and a same-origin
+		// redirect re-sends the Bearer token too). The API never 3xx's a
 		// programmatic JSON request, so treat any redirect as an error.
 		if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
 			this.fail(

@@ -127,6 +127,94 @@ describe("ApiClient constructor", () => {
 	it("throws on an insecure base URL", () => {
 		expect(() => makeClient({ baseUrl: "http://evil.example" })).toThrow(/Insecure/);
 	});
+
+	it("throws when BOTH apiKey and accessToken are provided", () => {
+		expect(
+			() =>
+				new ApiClient({
+					baseUrl: "https://app.example.com",
+					apiKey: "fd_key",
+					accessToken: "fdat_token",
+					projectId: "",
+					onError: (e: ApiError) => {
+						throw e;
+					},
+				} as never),
+		).toThrow(/Exactly one of apiKey or accessToken/);
+	});
+
+	it("throws when NEITHER apiKey nor accessToken is provided", () => {
+		expect(
+			() =>
+				new ApiClient({
+					baseUrl: "https://app.example.com",
+					projectId: "",
+					onError: (e: ApiError) => {
+						throw e;
+					},
+				} as never),
+		).toThrow(/Exactly one of apiKey or accessToken/);
+	});
+
+	it("treats empty-string credentials as absent", () => {
+		expect(
+			() =>
+				new ApiClient({
+					baseUrl: "https://app.example.com",
+					apiKey: "",
+					projectId: "",
+					onError: (e) => {
+						throw e;
+					},
+				}),
+		).toThrow(/Exactly one of apiKey or accessToken/);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Bearer access token credential
+// ---------------------------------------------------------------------------
+
+describe("ApiClient with accessToken", () => {
+	let fetchMock: ReturnType<typeof vi.fn>;
+	let client: ApiClient;
+
+	beforeEach(() => {
+		fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock);
+		client = new ApiClient({
+			baseUrl: "https://app.example.com",
+			accessToken: "fdat_test_token",
+			projectId: "",
+			onError: (e) => {
+				throw e;
+			},
+		});
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it("sends Authorization: Bearer and NO X-API-Key", async () => {
+		fetchMock.mockResolvedValue(jsonResponse({ success: true, data: {} }));
+		await client.get("/api/v1/content");
+		const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		const headers = init.headers as Record<string, string>;
+		expect(headers.Authorization).toBe("Bearer fdat_test_token");
+		expect(headers["X-API-Key"]).toBeUndefined();
+	});
+
+	it("withProject preserves the Bearer credential", async () => {
+		fetchMock.mockResolvedValue(jsonResponse({ success: true, data: {} }));
+		const derived = client.withProject("proj-2");
+		await derived.get(derived.projectPath("status"));
+		const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		expect(url).toContain("proj-2");
+		const headers = init.headers as Record<string, string>;
+		expect(headers.Authorization).toBe("Bearer fdat_test_token");
+		expect(headers["X-API-Key"]).toBeUndefined();
+	});
 });
 
 // ---------------------------------------------------------------------------
