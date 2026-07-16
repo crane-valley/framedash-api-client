@@ -6,6 +6,13 @@ follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-07-17
+
+### Added
+
+- Package `description` and `keywords` for discoverability on npm. No API
+  changes.
+
 ## [0.1.3] - 2026-07-05
 
 ### Added
