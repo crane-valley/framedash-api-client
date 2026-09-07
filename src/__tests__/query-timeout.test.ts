@@ -98,6 +98,7 @@ describe("query request timeout", () => {
 	});
 
 	it.each([
+		null as unknown as number,
 		0,
 		-1,
 		1.5,

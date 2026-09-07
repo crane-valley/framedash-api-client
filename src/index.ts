@@ -202,7 +202,7 @@ export class ApiClient {
 
 	constructor(options: ApiClientOptions) {
 		assertSafeBaseUrl(options.baseUrl);
-		const queryTimeoutMs = options.queryTimeoutMs ?? 30_000;
+		const queryTimeoutMs = options.queryTimeoutMs === undefined ? 30_000 : options.queryTimeoutMs;
 		if (!Number.isInteger(queryTimeoutMs) || queryTimeoutMs < 1 || queryTimeoutMs > 2_147_483_647) {
 			throw new Error("queryTimeoutMs must be an integer between 1 and 2147483647");
 		}
