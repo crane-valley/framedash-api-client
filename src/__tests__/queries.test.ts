@@ -10,10 +10,6 @@ import {
 	buildRetentionPath,
 } from "../queries.js";
 
-// ---------------------------------------------------------------------------
-// buildDashboardPath
-// ---------------------------------------------------------------------------
-
 describe("buildDashboardPath", () => {
 	it("returns bare path when called with no opts", () => {
 		expect(buildDashboardPath()).toBe("dashboard");
@@ -36,16 +32,10 @@ describe("buildDashboardPath", () => {
 	});
 
 	it("matches CLI default behavior (caller passes string '30')", () => {
-		// CLI: new URLSearchParams({ days: (values.days as string) ?? "30" })
-		// which always sets days; the caller passes "30" as the fallback.
 		const daysValue: string | undefined = undefined;
 		expect(buildDashboardPath({ days: daysValue ?? "30" })).toBe("dashboard?days=30");
 	});
 });
-
-// ---------------------------------------------------------------------------
-// buildRetentionPath
-// ---------------------------------------------------------------------------
 
 describe("buildRetentionPath", () => {
 	it("returns bare path when called with no opts", () => {
@@ -69,10 +59,6 @@ describe("buildRetentionPath", () => {
 		expect(buildRetentionPath({ days: daysValue ?? "30" })).toBe("retention?days=30");
 	});
 });
-
-// ---------------------------------------------------------------------------
-// buildFunnelPath
-// ---------------------------------------------------------------------------
 
 describe("buildFunnelPath", () => {
 	it("sets steps and nothing else when days/window omitted", () => {
@@ -117,10 +103,6 @@ describe("buildFunnelPath", () => {
 		expect(buildFunnelPath({ steps: "a,b", window: 0 })).toBe("funnels?steps=a%2Cb");
 	});
 });
-
-// ---------------------------------------------------------------------------
-// buildInsightsPath
-// ---------------------------------------------------------------------------
 
 describe("buildInsightsPath", () => {
 	it("sets metric and groupBy with no optional params", () => {
@@ -184,10 +166,6 @@ describe("buildInsightsPath", () => {
 	});
 });
 
-// ---------------------------------------------------------------------------
-// buildHeatmapPath
-// ---------------------------------------------------------------------------
-
 describe("buildHeatmapPath", () => {
 	it("sets mapId and nothing else when optional params omitted", () => {
 		expect(buildHeatmapPath({ mapId: "map-abc" })).toBe("heatmap?mapId=map-abc");
@@ -227,10 +205,6 @@ describe("buildHeatmapPath", () => {
 	});
 });
 
-// ---------------------------------------------------------------------------
-// buildContentPath
-// ---------------------------------------------------------------------------
-
 describe("buildContentPath", () => {
 	it("returns bare path when called with no opts", () => {
 		expect(buildContentPath()).toBe("/api/v1/content");
@@ -252,10 +226,6 @@ describe("buildContentPath", () => {
 		expect(buildContentPath({ type: "" })).toBe("/api/v1/content");
 	});
 });
-
-// ---------------------------------------------------------------------------
-// buildBuildsPath
-// ---------------------------------------------------------------------------
 
 describe("buildBuildsPath", () => {
 	it("returns bare path when called with no opts", () => {
@@ -287,10 +257,6 @@ describe("buildBuildsPath", () => {
 		);
 	});
 });
-
-// ---------------------------------------------------------------------------
-// buildBuildComparePath
-// ---------------------------------------------------------------------------
 
 describe("buildBuildComparePath", () => {
 	it("sets baseline and candidate with no optional params", () => {

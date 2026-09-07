@@ -6,6 +6,15 @@ follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-09-07
+
+### Added
+
+- Optional `queryTimeoutMs` lets `POST /api/v1/query` wait for ClickHouse to
+  resume from idle. The default remains 30 seconds; other requests retain their
+  existing timeout. Base URL path prefixes and `withProject()` preserve the
+  query timeout, and the client still sends only one HTTP request.
+
 ## [0.1.4] - 2026-07-17
 
 ### Added
