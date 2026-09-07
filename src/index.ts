@@ -2,7 +2,6 @@ import { isIPv4 } from "node:net";
 
 export * from "./queries.js";
 
-/** RFC 9457 Problem Details fields parsed from API error responses. */
 export interface ProblemDetails {
 	type?: string;
 	title?: string;
@@ -14,7 +13,6 @@ export interface ProblemDetails {
 	retry_after?: number;
 }
 
-/** Error details from an API response. */
 export class ApiError extends Error {
 	public readonly problem: ProblemDetails;
 
@@ -55,6 +53,7 @@ export type ApiClientCredential =
 export type ApiClientOptions = {
 	baseUrl: string;
 	projectId: string;
+	queryTimeoutMs?: number;
 	onError: (error: ApiError) => never;
 } & ApiClientCredential;
 
@@ -86,7 +85,6 @@ export function assertSafeBaseUrl(baseUrl: string): void {
 }
 
 function isLoopbackHost(hostname: string): boolean {
-	// Strip IPv6 brackets and an optional trailing dot (valid absolute FQDN form).
 	const host = hostname.replace(/^\[|\]$/g, "").replace(/\.$/, "");
 	if (host === "localhost" || host.endsWith(".localhost") || host === "::1") {
 		return true;
@@ -96,15 +94,119 @@ function isLoopbackHost(hostname: string): boolean {
 	return isIPv4(host) && host.startsWith("127.");
 }
 
-/** REST API client for the Framedash Developer Platform. */
+type ParsedJson = { ok: true; value: unknown } | { ok: false; error: ApiError };
+type ParsedApiResponse<T> = { ok: true; data: T } | { ok: false; error: ApiError };
+
+function createRequestHeaders(
+	credential: ApiClientCredential,
+	path: string,
+	projectId: string,
+	hasBody: boolean,
+): Record<string, string> {
+	const headers: Record<string, string> = {
+		Accept: "application/problem+json, application/json;q=0.9",
+	};
+	if (credential.apiKey !== undefined) {
+		headers["X-API-Key"] = credential.apiKey;
+	} else {
+		headers.Authorization = `Bearer ${credential.accessToken}`;
+	}
+
+	if (!path.includes("/projects/") && projectId) {
+		headers["X-Project-Id"] = projectId;
+	}
+	if (hasBody) {
+		headers["Content-Type"] = "application/json";
+	}
+	return headers;
+}
+
+function getUnexpectedRedirectError(response: Response): ApiError | null {
+	// Never follow a redirect: fetch would re-send the X-API-Key header to the
+	// redirect target (undici strips only Authorization/Cookie/Proxy-Authorization
+	// across a CROSS-origin redirect, not custom headers -- and a same-origin
+	// redirect re-sends the Bearer token too). The API never 3xx's a
+	// programmatic JSON request, so treat any redirect as an error.
+	if (response.type !== "opaqueredirect" && (response.status < 300 || response.status >= 400)) {
+		return null;
+	}
+	return new ApiError(
+		`API returned an unexpected redirect (status ${response.status || "opaque"}); refusing to resend credentials to the redirect target`,
+		response.status,
+		response.headers,
+	);
+}
+
+async function parseResponseJson(response: Response): Promise<ParsedJson> {
+	const text = await response.text();
+	try {
+		return { ok: true, value: JSON.parse(text) };
+	} catch {
+		return {
+			ok: false,
+			error: new ApiError(
+				`API returned non-JSON response (${response.status}): ${text.slice(0, 200)}`,
+				response.status,
+				response.headers,
+			),
+		};
+	}
+}
+
+function isSuccessfulEnvelope(value: unknown): value is { success: true; data: unknown } {
+	return (
+		typeof value === "object" && value !== null && (value as { success?: boolean }).success === true
+	);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+	return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+function selectApiErrorMessage(obj: Record<string, unknown>, response: Response): string {
+	if (typeof obj.detail === "string") return obj.detail;
+	if (typeof obj.title === "string") return obj.title;
+	return response.ok ? "API operation failed" : `HTTP ${response.status}`;
+}
+
+function getApiResponseError(response: Response, value: unknown): ApiError | null {
+	if (response.ok && isSuccessfulEnvelope(value)) return null;
+	const obj = asRecord(value);
+	return new ApiError(
+		`API error: ${selectApiErrorMessage(obj, response)}`,
+		response.status,
+		response.headers,
+		parseProblemDetails(obj),
+	);
+}
+
+async function parseApiResponse<T>(response: Response): Promise<ParsedApiResponse<T>> {
+	const redirectError = getUnexpectedRedirectError(response);
+	if (redirectError) return { ok: false, error: redirectError };
+
+	const parsedJson = await parseResponseJson(response);
+	if (!parsedJson.ok) return parsedJson;
+
+	const responseError = getApiResponseError(response, parsedJson.value);
+	if (responseError) return { ok: false, error: responseError };
+
+	return { ok: true, data: (parsedJson.value as { data: T }).data };
+}
+
 export class ApiClient {
 	private baseUrl: string;
 	private credential: ApiClientCredential;
 	private projectId: string;
+	private queryTimeoutMs: number;
 	private onError: (error: ApiError) => never;
 
 	constructor(options: ApiClientOptions) {
 		assertSafeBaseUrl(options.baseUrl);
+		const queryTimeoutMs = options.queryTimeoutMs === undefined ? 30_000 : options.queryTimeoutMs;
+		if (!Number.isInteger(queryTimeoutMs) || queryTimeoutMs < 1 || queryTimeoutMs > 2_147_483_647) {
+			throw new Error("queryTimeoutMs must be an integer between 1 and 2147483647");
+		}
+		this.queryTimeoutMs = queryTimeoutMs;
 		const hasApiKey = typeof options.apiKey === "string" && options.apiKey.length > 0;
 		const hasAccessToken =
 			typeof options.accessToken === "string" && options.accessToken.length > 0;
@@ -135,12 +237,10 @@ export class ApiClient {
 		return this.request<T>("DELETE", path);
 	}
 
-	/** The current project ID (may be empty if not configured). */
 	get currentProjectId(): string {
 		return this.projectId;
 	}
 
-	/** Build a project-scoped API path: /api/v1/projects/{projectId}/{suffix} */
 	projectPath(suffix: string): string {
 		if (!this.projectId) {
 			throw new Error("projectId is required for project-scoped requests");
@@ -148,11 +248,11 @@ export class ApiClient {
 		return `/api/v1/projects/${encodeURIComponent(this.projectId)}/${suffix}`;
 	}
 
-	/** Create a new client with a different project ID (same credential). */
 	withProject(projectId: string): ApiClient {
 		return new ApiClient({
 			baseUrl: this.baseUrl,
 			projectId,
+			queryTimeoutMs: this.queryTimeoutMs,
 			onError: this.onError,
 			...this.credential,
 		});
@@ -167,81 +267,22 @@ export class ApiClient {
 
 	private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
 		const url = `${this.baseUrl}${path}`;
-		const headers: Record<string, string> = {
-			Accept: "application/problem+json, application/json;q=0.9",
-		};
-		if (this.credential.apiKey !== undefined) {
-			headers["X-API-Key"] = this.credential.apiKey;
-		} else {
-			headers.Authorization = `Bearer ${this.credential.accessToken}`;
-		}
-
-		if (!path.includes("/projects/") && this.projectId) {
-			headers["X-Project-Id"] = this.projectId;
-		}
-
-		if (body !== undefined) {
-			headers["Content-Type"] = "application/json";
-		}
+		const headers = createRequestHeaders(this.credential, path, this.projectId, body !== undefined);
+		const timeoutMs =
+			method === "POST" && path.split(/[?#]/, 1)[0] === "/api/v1/query"
+				? this.queryTimeoutMs
+				: 30_000;
 
 		const response = await fetch(url, {
 			method,
 			headers,
 			body: body !== undefined ? JSON.stringify(body) : undefined,
 			redirect: "manual",
-			signal: AbortSignal.timeout(30_000),
+			signal: AbortSignal.timeout(timeoutMs),
 		});
-
-		// Never follow a redirect: fetch would re-send the X-API-Key header to the
-		// redirect target (undici strips only Authorization/Cookie/Proxy-Authorization
-		// across a CROSS-origin redirect, not custom headers -- and a same-origin
-		// redirect re-sends the Bearer token too). The API never 3xx's a
-		// programmatic JSON request, so treat any redirect as an error.
-		if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
-			this.fail(
-				new ApiError(
-					`API returned an unexpected redirect (status ${response.status || "opaque"}); refusing to resend credentials to the redirect target`,
-					response.status,
-					response.headers,
-				),
-			);
-		}
-
-		const text = await response.text();
-		let json: unknown;
-		try {
-			json = JSON.parse(text);
-		} catch {
-			this.fail(
-				new ApiError(
-					`API returned non-JSON response (${response.status}): ${text.slice(0, 200)}`,
-					response.status,
-					response.headers,
-				),
-			);
-		}
-
-		if (
-			!response.ok ||
-			typeof json !== "object" ||
-			json === null ||
-			(json as { success?: boolean }).success !== true
-		) {
-			const obj =
-				typeof json === "object" && json !== null ? (json as Record<string, unknown>) : {};
-			const problem = parseProblemDetails(obj);
-			const msg =
-				typeof obj.detail === "string"
-					? obj.detail
-					: typeof obj.title === "string"
-						? obj.title
-						: response.ok
-							? "API operation failed"
-							: `HTTP ${response.status}`;
-			this.fail(new ApiError(`API error: ${msg}`, response.status, response.headers, problem));
-		}
-
-		return (json as { data: T }).data;
+		const parsed = await parseApiResponse<T>(response);
+		if (!parsed.ok) this.fail(parsed.error);
+		return parsed.data;
 	}
 }
 

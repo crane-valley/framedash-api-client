@@ -28,6 +28,17 @@ const data = await client.get(client.projectPath("analytics/dashboard"));
 const other = client.withProject("other-uuid");
 ```
 
+### Query timeout
+
+All requests default to 30 seconds. Set `queryTimeoutMs: 120_000` in the client
+options to allow a query to wait for ClickHouse to resume from idle. The option
+applies only to `POST /api/v1/query`, including query strings and deployments
+under a base URL path. Other requests retain the 30-second timeout.
+
+`queryTimeoutMs` is an integer number of milliseconds from 1 to 2,147,483,647.
+`withProject()` preserves the setting. The CLI and MCP server explicitly use
+120,000 milliseconds; the client does not retry HTTP requests.
+
 ## Build
 
 ```bash

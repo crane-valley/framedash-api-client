@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClient, ApiError, assertSafeBaseUrl } from "../index.js";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function jsonResponse(
 	body: unknown,
 	status = 200,
@@ -36,10 +32,6 @@ function makeClient(
 			}),
 	});
 }
-
-// ---------------------------------------------------------------------------
-// assertSafeBaseUrl
-// ---------------------------------------------------------------------------
 
 describe("assertSafeBaseUrl", () => {
 	describe("accepts safe URLs", () => {
@@ -99,10 +91,6 @@ describe("assertSafeBaseUrl", () => {
 		});
 	});
 });
-
-// ---------------------------------------------------------------------------
-// ApiClient constructor
-// ---------------------------------------------------------------------------
 
 describe("ApiClient constructor", () => {
 	let fetchMock: ReturnType<typeof vi.fn>;
@@ -171,10 +159,6 @@ describe("ApiClient constructor", () => {
 	});
 });
 
-// ---------------------------------------------------------------------------
-// Bearer access token credential
-// ---------------------------------------------------------------------------
-
 describe("ApiClient with accessToken", () => {
 	let fetchMock: ReturnType<typeof vi.fn>;
 	let client: ApiClient;
@@ -216,10 +200,6 @@ describe("ApiClient with accessToken", () => {
 		expect(headers["X-API-Key"]).toBeUndefined();
 	});
 });
-
-// ---------------------------------------------------------------------------
-// get() transport
-// ---------------------------------------------------------------------------
 
 describe("ApiClient.get()", () => {
 	let fetchMock: ReturnType<typeof vi.fn>;
@@ -285,10 +265,6 @@ describe("ApiClient.get()", () => {
 	});
 });
 
-// ---------------------------------------------------------------------------
-// post() transport
-// ---------------------------------------------------------------------------
-
 describe("ApiClient.post()", () => {
 	let fetchMock: ReturnType<typeof vi.fn>;
 	let client: ApiClient;
@@ -318,10 +294,6 @@ describe("ApiClient.post()", () => {
 	});
 });
 
-// ---------------------------------------------------------------------------
-// Redirect handling
-// ---------------------------------------------------------------------------
-
 describe("redirect handling", () => {
 	let fetchMock: ReturnType<typeof vi.fn>;
 	let errors: ApiError[];
@@ -350,7 +322,6 @@ describe("redirect handling", () => {
 	});
 
 	it("rejects a response with type 'opaqueredirect'", async () => {
-		// Simulate a fetch opaqueredirect response object (redirect:'manual' + cross-origin)
 		const opaqueResponse = {
 			type: "opaqueredirect",
 			status: 0,
@@ -363,10 +334,6 @@ describe("redirect handling", () => {
 		expect(errors[0]?.message).toMatch(/redirect/i);
 	});
 });
-
-// ---------------------------------------------------------------------------
-// Non-JSON response
-// ---------------------------------------------------------------------------
 
 describe("non-JSON body", () => {
 	let fetchMock: ReturnType<typeof vi.fn>;
@@ -391,10 +358,6 @@ describe("non-JSON body", () => {
 		await expect(client.get("/api/v1/content")).rejects.toThrow(/non-JSON response/);
 	});
 });
-
-// ---------------------------------------------------------------------------
-// Error response handling
-// ---------------------------------------------------------------------------
 
 describe("error response handling", () => {
 	let fetchMock: ReturnType<typeof vi.fn>;
@@ -463,10 +426,6 @@ describe("error response handling", () => {
 	});
 });
 
-// ---------------------------------------------------------------------------
-// projectPath / withProject / currentProjectId
-// ---------------------------------------------------------------------------
-
 describe("projectPath", () => {
 	let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -523,10 +482,6 @@ describe("withProject", () => {
 		expect(url).toContain("proj-new");
 	});
 });
-
-// ---------------------------------------------------------------------------
-// onError contract
-// ---------------------------------------------------------------------------
 
 describe("onError contract", () => {
 	let fetchMock: ReturnType<typeof vi.fn>;
