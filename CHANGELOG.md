@@ -6,6 +6,18 @@ follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-09-12
+
+Published from public mirror PR #3 through release workflow 34694001703;
+npm artifact integrity and provenance were verified on 2026-09-12.
+
+### Added
+
+- Opt-in performance-run evidence types, bounded histogram parsing and comparison
+  helpers. Missing, incomplete, conflicting or mismatched runs are inconclusive;
+  comparable reports contain quantile intervals and optional unchanged-repeat
+  variation. Existing query timeout and transport behavior are unchanged.
+
 ## [0.1.5] - 2026-09-07
 
 ### Added
