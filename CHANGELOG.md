@@ -6,9 +6,10 @@ follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
-## [0.1.6] - Publication pending
+## [0.1.6] - 2026-09-12
 
-Prepared in source; public mirror and npm publication are not yet verified.
+Published from public mirror PR #3 through release workflow 34694001703;
+npm artifact integrity and provenance were verified on 2026-09-12.
 
 ### Added
 
