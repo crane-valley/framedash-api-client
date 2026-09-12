@@ -1,6 +1,6 @@
 {
 	"name": "@framedash/api-client",
-	"version": "0.1.5",
+	"version": "0.1.6",
 	"description": "TypeScript client for the Framedash game telemetry REST API (queries, heatmaps, perf regressions, alerts)",
 	"keywords": [
 		"framedash",

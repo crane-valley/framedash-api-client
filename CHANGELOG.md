@@ -6,6 +6,17 @@ follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
+## [0.1.6] - Publication pending
+
+Prepared in source; public mirror and npm publication are not yet verified.
+
+### Added
+
+- Opt-in performance-run evidence types, bounded histogram parsing and comparison
+  helpers. Missing, incomplete, conflicting or mismatched runs are inconclusive;
+  comparable reports contain quantile intervals and optional unchanged-repeat
+  variation. Existing query timeout and transport behavior are unchanged.
+
 ## [0.1.5] - 2026-09-07
 
 ### Added
