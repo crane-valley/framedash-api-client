@@ -1,5 +1,6 @@
 import { isIPv4 } from "node:net";
 
+export * from "./performance-runs.js";
 export * from "./queries.js";
 
 export interface ProblemDetails {

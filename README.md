@@ -6,6 +6,7 @@ Shared REST API client for the Framedash Developer Platform. Used by `@framedash
 
 - **`ApiClient`** — HTTP client with project-scoped request helpers, automatic error handling, and 30s timeout
 - **`ApiError`** — Typed error with `status` and `headers` for structured error handling
+- **`readPerformanceRun` / `comparePerformanceRuns`** — LP2 pilot helpers added in 0.1.6 for bounded per-frame evidence, completeness and declared-condition checks. Version 0.1.5 and earlier do not include them. A comparable result is not a regression verdict.
 
 ## Usage
 
