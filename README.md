@@ -23,7 +23,7 @@ const client = new ApiClient({
 });
 
 // Project-scoped request
-const data = await client.get(client.projectPath("analytics/dashboard"));
+const data = await client.get(client.projectPath("dashboard"));
 
 // Switch project context
 const other = client.withProject("other-uuid");
