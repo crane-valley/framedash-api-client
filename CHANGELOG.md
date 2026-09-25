@@ -6,6 +6,11 @@ follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
+### Changed
+
+- Recommend an explicit 240-second Query timeout for ClickHouse idle resume.
+  The client implementation and public 30-second default are unchanged.
+
 ## [0.1.6] - 2026-09-12
 
 Published from public mirror PR #3 through release workflow 34694001703;

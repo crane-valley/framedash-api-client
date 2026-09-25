@@ -31,14 +31,17 @@ const other = client.withProject("other-uuid");
 
 ### Query timeout
 
-All requests default to 30 seconds. Set `queryTimeoutMs: 120_000` in the client
+All requests default to 30 seconds. Set `queryTimeoutMs: 240_000` in the client
 options to allow a query to wait for ClickHouse to resume from idle. The option
 applies only to `POST /api/v1/query`, including query strings and deployments
 under a base URL path. Other requests retain the 30-second timeout.
 
 `queryTimeoutMs` is an integer number of milliseconds from 1 to 2,147,483,647.
-`withProject()` preserves the setting. The CLI and MCP server explicitly use
-120,000 milliseconds; the client does not retry HTTP requests.
+`withProject()` preserves the setting. `@framedash/cli` v0.1.12 configures
+240,000 milliseconds for its API-key-only `framedash query` command;
+`@framedash/mcp-server` v0.1.5 does so in its stdio entry point. Embedded MCP
+hosts provide their own client and timeout. The client does not retry HTTP
+requests.
 
 ## Build
 
