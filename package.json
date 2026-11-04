@@ -1,6 +1,6 @@
 {
 	"name": "@framedash/api-client",
-	"version": "0.1.6",
+	"version": "0.2.0",
 	"description": "TypeScript client for the Framedash game telemetry REST API (queries, heatmaps, perf regressions, alerts)",
 	"keywords": [
 		"framedash",
@@ -31,7 +31,7 @@
 		"clean": "rm -rf dist"
 	},
 	"engines": {
-		"node": ">=20.0.0"
+		"node": ">=22.0.0"
 	},
 	"devDependencies": {
 		"@types/node": "^22.0.0",

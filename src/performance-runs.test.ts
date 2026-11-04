@@ -62,7 +62,96 @@ function events(id = BASE, bin = 80): [PerformanceRunEvent, PerformanceRunEvent]
 	];
 }
 
+function measurementEvents(
+	bins: [number, number][],
+	durationMs: number,
+	hitches: [number, number, number, number],
+) {
+	const rows = events();
+	const histogram = Array<number>(256).fill(0);
+	for (const [bin, count] of bins) histogram[bin] = count;
+	for (let i = 0; i < 8; i++)
+		rows[1].attributes[`pr.hist.${i}`] = histogram.slice(i * 32, (i + 1) * 32).join(",");
+	rows[1].timestamp_us = "1000000000";
+	Object.assign(rows[1].metrics, {
+		"pr.duration_ms": Math.fround(durationMs),
+		"pr.hitch_16": hitches[0],
+		"pr.hitch_33": hitches[1],
+		"pr.hitch_50": hitches[2],
+		"pr.hitch_100": hitches[3],
+	});
+	return rows;
+}
+
 describe("performance run evidence", () => {
+	it.each<[[number, number][], number, [number, number, number, number]]>([
+		[[[80, 1200]], 19500, [1200, 0, 0, 0]],
+		[[[80, 1200]], 20200, [0, 0, 0, 0]],
+		[[[96, 1200]], 39000, [1200, 1200, 0, 0]],
+		[[[96, 1200]], 40400, [1200, 0, 0, 0]],
+		[[[105, 1200]], 61000, [1200, 1200, 0, 0]],
+		[[[121, 1200]], 121000, [1200, 1200, 1200, 0]],
+		[
+			[
+				[79, 600],
+				[80, 600],
+			],
+			19000,
+			[600, 0, 0, 0],
+		],
+		[
+			[
+				[80, 600],
+				[96, 600],
+			],
+			29600,
+			[1200, 600, 0, 0],
+		],
+	])("rejects duration inconsistent with histogram %j and hitch counts", (bins, duration, hitches) => {
+		const baseline = readPerformanceRun(BASE, measurementEvents(bins, duration, hitches));
+		expect(baseline).toMatchObject({ status: "invalid", reasons: ["invalid_duration"] });
+		expect(
+			comparePerformanceRuns(baseline, readPerformanceRun(CANDIDATE, events(CANDIDATE))),
+		).toMatchObject({ status: "inconclusive", reasons: ["baseline_not_complete"] });
+	});
+	it.each<[[number, number][], number, [number, number, number, number]]>([
+		[[[80, 1200]], 20000, [0, 0, 0, 0]],
+		[[[80, 1200]], 20250, [1200, 0, 0, 0]],
+		[[[96, 1200]], 39600, [1200, 0, 0, 0]],
+		[[[96, 1200]], 40500, [1200, 1200, 0, 0]],
+		[[[105, 1200]], 60000, [1200, 1200, 0, 0]],
+		[[[105, 1200]], 61500, [1200, 1200, 1200, 0]],
+		[[[121, 1200]], 120000, [1200, 1200, 1200, 0]],
+		[[[121, 1200]], 123000, [1200, 1200, 1200, 1200]],
+		[
+			[
+				[79, 600],
+				[80, 600],
+			],
+			19500,
+			[600, 0, 0, 0],
+		],
+		[
+			[
+				[80, 600],
+				[96, 600],
+			],
+			29550,
+			[600, 0, 0, 0],
+		],
+		[
+			[
+				[80, 601],
+				[96, 599],
+			],
+			601 * (1000 / 60) + 599 * (1000 / 30),
+			[599, 0, 0, 0],
+		],
+	])("accepts consistent duration and hitch counts for histogram %j", (bins, duration, hitches) => {
+		expect(readPerformanceRun(BASE, measurementEvents(bins, duration, hitches)).status).toBe(
+			"complete",
+		);
+	});
 	it.each(["\n", "\r", "\r\n", "\u2028", "\u2029"])("rejects UUIDs with trailing %j", (suffix) => {
 		expect(isPerformanceRunId(BASE + suffix)).toBe(false);
 	});

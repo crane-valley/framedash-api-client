@@ -57,6 +57,7 @@ export interface HeatmapOpts {
 	cellSize?: number | string;
 	days?: number | string;
 	eventName?: string;
+	coordinates?: "world";
 }
 
 export function buildHeatmapPath(opts: HeatmapOpts): string {
@@ -64,6 +65,7 @@ export function buildHeatmapPath(opts: HeatmapOpts): string {
 	if (opts.cellSize) params.set("cellSize", String(opts.cellSize));
 	if (opts.days) params.set("days", String(opts.days));
 	if (opts.eventName) params.set("eventName", opts.eventName);
+	if (opts.coordinates) params.set("coordinates", opts.coordinates);
 	return `heatmap?${params}`;
 }
 

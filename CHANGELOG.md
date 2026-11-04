@@ -6,10 +6,21 @@ follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-04
+
+### Added
+
+- `buildHeatmapPath` accepts an optional `coordinates?: "world"` query parameter
+  to request world-space cell coordinates from the heatmap endpoint.
+
 ### Changed
 
 - Recommend an explicit 240-second Query timeout for ClickHouse idle resume.
   The client implementation and public 30-second default are unchanged.
+- **Breaking:** Require Node.js 22 or later (`engines.node` `>=22.0.0`). This
+  breaks Node 20 users: Node.js 20 reached end of life and does not
+  receive the CVE-2026-111497 fix; on Node 20 npm warns (EBADENGINE) and
+  support is no longer tested. Upgrade to Node.js 22.23.4+ or 24.22.1+.
 
 ## [0.1.6] - 2026-09-12
 

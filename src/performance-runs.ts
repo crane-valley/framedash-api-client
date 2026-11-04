@@ -136,11 +136,25 @@ function readHistogram(attributes: Record<string, string>): number[] | undefined
 	return histogram;
 }
 
-function validDuration(histogram: number[], duration: number, wallTimeMs: number): boolean {
+function validDuration(
+	histogram: number[],
+	hitches: NonNullable<PerformanceRun["hitches"]>,
+	duration: number,
+	wallTimeMs: number,
+): boolean {
+	let higherSamples = histogram.reduce((sum, count) => sum + count, 0);
 	const durationBounds = histogram.reduce<MillisecondInterval>(
 		(sum, count, i) => {
-			const bounds = performanceHistogramBounds(i);
-			return [sum[0] + count * bounds[0], sum[1] + count * bounds[1]];
+			higherSamples -= count;
+			const [lower, upper] = performanceHistogramBounds(i);
+			const hitch = hitches.find(({ thresholdMs }) => thresholdMs >= lower && thresholdMs < upper);
+			if (!hitch) return [sum[0] + count * lower, sum[1] + count * upper];
+			const above = hitch.count - higherSamples;
+			const below = count - above;
+			return [
+				sum[0] + below * lower + above * hitch.thresholdMs,
+				sum[1] + below * hitch.thresholdMs + above * upper,
+			];
 		},
 		[0, 0],
 	);
@@ -218,9 +232,9 @@ function readMeasurement(
 	)
 		return "invalid_sample_accounting";
 	const wallTimeMs = Number(BigInt(end.timestamp_us) - BigInt(startedAtUs)) / 1000;
-	if (!validDuration(histogram, durationMs, wallTimeMs)) return "invalid_duration";
 	const hitches = readHitches(histogram, samples, end.metrics);
 	if (!hitches) return "invalid_hitch_counts";
+	if (!validDuration(histogram, hitches, durationMs, wallTimeMs)) return "invalid_duration";
 	return {
 		samples,
 		droppedSamples,

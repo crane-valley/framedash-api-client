@@ -53,13 +53,13 @@ describe("query request timeout", () => {
 	it.each([
 		"http://localhost:3000",
 		"http://localhost:3000/proxy",
-	])("allows an opted-in query through %s to take 69 seconds without an HTTP retry", async (baseUrl) => {
-		const fetch = delayedResponse(69_000);
-		const client = makeClient({ baseUrl, queryTimeoutMs: 120_000 }).withProject("project-2");
+	])("allows an opted-in query through %s to take 136 seconds without an HTTP retry", async (baseUrl) => {
+		const fetch = delayedResponse(136_000);
+		const client = makeClient({ baseUrl, queryTimeoutMs: 240_000 }).withProject("project-2");
 		const result = client
 			.post("/api/v1/query?format=json", { sql: "SELECT 1" })
 			.catch((error: unknown) => error);
-		await vi.advanceTimersByTimeAsync(69_000);
+		await vi.advanceTimersByTimeAsync(136_000);
 		expect(await result).toEqual({ rowCount: 1 });
 		expect(fetch).toHaveBeenCalledOnce();
 		expect(fetch.mock.calls[0]?.[0]).toBe(`${baseUrl}/api/v1/query?format=json`);
@@ -68,10 +68,11 @@ describe("query request timeout", () => {
 	it.each([
 		["/api/v1/query", undefined, 30_000],
 		["/api/v1/query", 120_000, 120_000],
-		["/api/v1/alerts", 120_000, 30_000],
-		["/api/v1/query-export", 120_000, 30_000],
+		["/api/v1/query", 240_000, 240_000],
+		["/api/v1/alerts", 240_000, 30_000],
+		["/api/v1/query-export", 240_000, 30_000],
 	])("aborts %s with queryTimeoutMs=%s at %s ms", async (path, queryTimeoutMs, timeout) => {
-		const fetch = delayedResponse(180_000);
+		const fetch = delayedResponse(300_000);
 		const settled = vi.fn();
 		const result = makeClient({ queryTimeoutMs })
 			.post(path, {})
@@ -90,7 +91,7 @@ describe("query request timeout", () => {
 	it("keeps GET requests on the query path at 30 seconds when opted in", async () => {
 		const fetch = delayedResponse(69_000);
 		const result = expect(
-			makeClient({ queryTimeoutMs: 120_000 }).get("/api/v1/query"),
+			makeClient({ queryTimeoutMs: 240_000 }).get("/api/v1/query"),
 		).rejects.toMatchObject({ name: "TimeoutError" });
 		await vi.advanceTimersByTimeAsync(30_000);
 		await result;
