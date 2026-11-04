@@ -192,6 +192,12 @@ describe("buildHeatmapPath", () => {
 		expect(path).toBe("heatmap?mapId=map-abc&cellSize=10&days=14&eventName=kill");
 	});
 
+	it("opts into world coordinates last so Y-up maps answer instead of 409", () => {
+		expect(buildHeatmapPath({ mapId: "map-abc", days: 7, coordinates: "world" })).toBe(
+			"heatmap?mapId=map-abc&days=7&coordinates=world",
+		);
+	});
+
 	it("percent-encodes the mapId", () => {
 		expect(buildHeatmapPath({ mapId: "map abc" })).toBe("heatmap?mapId=map+abc");
 	});
