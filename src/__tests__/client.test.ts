@@ -157,6 +157,60 @@ describe("ApiClient constructor", () => {
 				}),
 		).toThrow(/Exactly one of apiKey or accessToken/);
 	});
+
+	it("treats a whitespace-only apiKey as absent", () => {
+		expect(() => makeClient({ apiKey: " \r\n" })).toThrow(/Exactly one of apiKey or accessToken/);
+	});
+
+	it.each([
+		"test-key-secret\nabc",
+		"test-key\x00secret",
+		"test-key\tsecret",
+		"test-key\x7fsecret",
+	])("rejects an apiKey with an interior control character without echoing it (%j)", (apiKey) => {
+		let thrown: unknown;
+		try {
+			makeClient({ apiKey });
+		} catch (err) {
+			thrown = err;
+		}
+		expect(thrown).toBeInstanceOf(Error);
+		const message = (thrown as Error).message;
+		expect(message).toMatch(/apiKey contains a control character/);
+		expect(message).not.toContain("secret");
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it("rejects an accessToken with an interior control character without echoing it", () => {
+		let thrown: unknown;
+		try {
+			new ApiClient({
+				baseUrl: "https://app.example.com",
+				accessToken: "fdat_secret\r\nX-Injected: 1",
+				projectId: "",
+				onError: (e) => {
+					throw e;
+				},
+			});
+		} catch (err) {
+			thrown = err;
+		}
+		expect(thrown).toBeInstanceOf(Error);
+		const message = (thrown as Error).message;
+		expect(message).toMatch(/accessToken contains a control character/);
+		expect(message).not.toContain("secret");
+	});
+
+	it("trims edge whitespace from the apiKey, including on withProject clients", async () => {
+		fetchMock.mockImplementation(async () => jsonResponse({ success: true, data: {} }));
+		const client = makeClient({ apiKey: "  fd_key\r\n" });
+		await client.get("/api/v1/content");
+		await client.withProject("proj-2").get("/api/v1/content");
+		for (const [, init] of fetchMock.mock.calls as [string, RequestInit][]) {
+			expect((init.headers as Record<string, string>)["X-API-Key"]).toBe("fd_key");
+		}
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+	});
 });
 
 describe("ApiClient with accessToken", () => {

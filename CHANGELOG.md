@@ -6,6 +6,18 @@ follows [Keep a Changelog](https://keepachangelog.com/) and
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-14
+
+### Fixed
+
+- The `ApiClient` constructor now trims edge whitespace from `apiKey` and
+  `accessToken` and throws when the credential contains a control character
+  (such as an embedded newline). The error names the credential kind but not
+  its value. Previously the first request failed with a fetch header error
+  that included the full credential. A whitespace-only credential is treated
+  as absent. Valid credentials, including ones with a trailing newline that
+  fetch already stripped, behave as before.
+
 ## [0.2.0] - 2026-11-04
 
 ### Added

@@ -95,6 +95,27 @@ function isLoopbackHost(hostname: string): boolean {
 	return isIPv4(host) && host.startsWith("127.");
 }
 
+// fetch strips edge whitespace from header values, so a key read with a trailing newline works
+// today; trimming before the control-character check keeps it working.
+function normalizeCredential(value: unknown): string | undefined {
+	if (typeof value !== "string") return undefined;
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
+}
+
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point
+const CONTROL_CHAR = /[\x00-\x1f\x7f]/;
+
+function assertNoControlChar(value: string, kind: "apiKey" | "accessToken"): void {
+	// fetch's invalid-header error embeds the full header value, so the credential must be
+	// rejected here, with a message that never includes it.
+	if (CONTROL_CHAR.test(value)) {
+		throw new Error(
+			`${kind} contains a control character (e.g. an embedded newline); check how the credential was stored`,
+		);
+	}
+}
+
 type ParsedJson = { ok: true; value: unknown } | { ok: false; error: ApiError };
 type ParsedApiResponse<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
@@ -208,15 +229,18 @@ export class ApiClient {
 			throw new Error("queryTimeoutMs must be an integer between 1 and 2147483647");
 		}
 		this.queryTimeoutMs = queryTimeoutMs;
-		const hasApiKey = typeof options.apiKey === "string" && options.apiKey.length > 0;
-		const hasAccessToken =
-			typeof options.accessToken === "string" && options.accessToken.length > 0;
-		if (hasApiKey === hasAccessToken) {
+		const apiKey = normalizeCredential(options.apiKey);
+		const accessToken = normalizeCredential(options.accessToken);
+		if ((apiKey === undefined) === (accessToken === undefined)) {
 			throw new Error("Exactly one of apiKey or accessToken is required");
 		}
-		this.credential = hasApiKey
-			? { apiKey: options.apiKey as string }
-			: { accessToken: options.accessToken as string };
+		if (apiKey !== undefined) {
+			assertNoControlChar(apiKey, "apiKey");
+			this.credential = { apiKey };
+		} else {
+			assertNoControlChar(accessToken as string, "accessToken");
+			this.credential = { accessToken: accessToken as string };
+		}
 		this.baseUrl = options.baseUrl.replace(/\/+$/, "");
 		this.projectId = options.projectId;
 		this.onError = options.onError;
